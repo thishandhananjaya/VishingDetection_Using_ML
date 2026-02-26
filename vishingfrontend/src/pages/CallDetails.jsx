@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/sidebar'
 import Topbar from '../components/Topbar'
-import { getCall, summarizeCall } from '../services/api'
+import { getCall, summarizeCall, markReviewed } from '../services/api'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiArrowLeft, FiShield, FiAlertTriangle, FiFileText, FiCpu, FiLoader } from 'react-icons/fi'
+import { jsPDF } from 'jspdf'
 
 export default function CallDetails() {
   const { id } = useParams()
@@ -45,14 +46,72 @@ export default function CallDetails() {
     }
   }
 
+  const handleResolve = async () => {
+    try {
+      setSummarizing(true)
+      const res = await markReviewed(id)
+      setCall(res.data.call || res.call)
+      toast.success('Call marked as Resolved')
+    } catch (err) {
+      toast.error('Failed to resolve call')
+    } finally {
+      setSummarizing(false)
+    }
+  }
+
+  const handleExportReport = () => {
+    if (!call) return
+    toast.loading('Generating Security Report...', { id: 'export' })
+    try {
+      const doc = new jsPDF()
+
+      // Header
+      doc.setFillColor(5, 5, 5)
+      doc.rect(0, 0, 210, 40, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(22)
+      doc.text("VishingGuard Security Report", 20, 25)
+
+      // Content
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(10)
+      doc.text(`Report Generated: ${new Date().toLocaleString()}`, 20, 50)
+
+      doc.setFontSize(16)
+      doc.text("Call Metadata", 20, 70)
+      doc.setFontSize(12)
+      doc.text(`File: ${call.filename}`, 20, 80)
+      doc.text(`Timestamp: ${call.timestamp}`, 20, 90)
+      doc.text(`Risk Score: ${call.risk}%`, 20, 100)
+      doc.text(`Status: ${call.status}`, 20, 110)
+
+      doc.setFontSize(16)
+      doc.text("AI Summary", 20, 130)
+      doc.setFontSize(10)
+      const splitSummary = doc.splitTextToSize(summary || "No summary available.", 170)
+      doc.text(splitSummary, 20, 140)
+
+      doc.setFontSize(16)
+      doc.text("Transcript", 20, 180)
+      const splitTranscript = doc.splitTextToSize(call.transcript || "N/A", 170)
+      doc.text(splitTranscript, 20, 190)
+
+      doc.save(`Vishing_Report_${call.id.slice(0, 8)}.pdf`)
+      toast.success('Report exported successfully!', { id: 'export' })
+    } catch (err) {
+      toast.error('Export failed.', { id: 'export' })
+      console.error(err)
+    }
+  }
+
   if (loading) return (
-    <div className="bg-gray-950 min-h-screen flex items-center justify-center">
+    <div className="bg-gray-950 min-h-screen flex items-center justify-center text-white font-sans">
       <FiLoader className="text-blue-500 animate-spin text-4xl" />
     </div>
   )
 
   if (!call) return (
-    <div className="bg-gray-950 min-h-screen flex flex-col items-center justify-center p-8">
+    <div className="bg-gray-950 min-h-screen flex flex-col items-center justify-center p-8 text-white font-sans">
       <h1 className="text-2xl font-bold mb-4">Call Not Found</h1>
       <button onClick={() => navigate('/dashboard')} className="text-blue-500 flex items-center gap-2">
         <FiArrowLeft /> Back to Dashboard
@@ -61,7 +120,7 @@ export default function CallDetails() {
   )
 
   return (
-    <div className="bg-gray-950 min-h-screen text-gray-100 pb-12">
+    <div className="bg-gray-950 min-h-screen text-gray-100 pb-12 font-sans">
       <Sidebar />
       <Topbar />
       <main className="ml-64 p-8">
@@ -80,7 +139,7 @@ export default function CallDetails() {
           <header className="flex justify-between items-start mb-10">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${call.status === 'Scam' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-green-500/20 text-green-500 border border-green-500/30'
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${call.status === 'Scam' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : call.status === 'Resolved' ? 'bg-blue-500/20 text-blue-500 border border-blue-500/30' : 'bg-green-500/20 text-green-500 border border-green-500/30'
                   }`}>
                   {call.status} DETECTED
                 </span>
@@ -97,7 +156,6 @@ export default function CallDetails() {
           </header>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Transcript */}
             <div className="lg:col-span-2 space-y-8">
               <section className="bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-2xl">
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -122,7 +180,6 @@ export default function CallDetails() {
               )}
             </div>
 
-            {/* AI Summary Side Panel */}
             <aside className="space-y-6">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -155,11 +212,21 @@ export default function CallDetails() {
               <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8">
                 <h3 className="font-bold mb-4">Actions</h3>
                 <div className="space-y-3">
-                  <button className="w-full bg-white text-black py-4 rounded-2xl font-bold hover:bg-gray-200 transition-colors">
-                    Mark as Resolved
+                  <button
+                    onClick={handleResolve}
+                    disabled={call.status === 'Resolved'}
+                    className={`w-full py-4 rounded-2xl font-bold transition-all shadow-lg ${call.status === 'Resolved'
+                        ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                        : 'bg-white text-black hover:scale-[1.02] active:scale-[0.98]'
+                      }`}
+                  >
+                    {call.status === 'Resolved' ? '✓ Resolved' : 'Mark as Resolved'}
                   </button>
-                  <button className="w-full border border-gray-700 py-4 rounded-2xl font-bold hover:bg-gray-800 transition-colors">
-                    Export Report
+                  <button
+                    onClick={handleExportReport}
+                    className="w-full border border-gray-700 py-4 rounded-2xl font-bold text-gray-400 hover:bg-gray-800 hover:text-white transition-all"
+                  >
+                    Export Report (PDF)
                   </button>
                 </div>
               </div>
