@@ -1,0 +1,25 @@
+# Voice & Image Scam Detector Requirements
+
+# Audio Processing
+pyaudio==0.2.14
+wave
+
+# Machine Learning & AI
+openai-whisper==20231117
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# Image Processing & OCR
+Pillow==10.1.0
+pytesseract==0.3.10
+
+# API Integration
+gradio-client==0.7.1
+
+# GUI (comes with Python but listed for completeness)
+# tkinter (built-in with Python)
+
+# Additional dependencies
+numpy>=1.24.0
+scipy>=1.10.0
+ffmpeg-python==0.2.0
