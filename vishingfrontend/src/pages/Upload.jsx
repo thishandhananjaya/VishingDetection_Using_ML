@@ -40,10 +40,12 @@ export default function Upload() {
     setLoading(true)
     try {
       const response = await analyzeFolder(folderPath)
-      const data = response.data || response
-      if (Array.isArray(data)) {
-        setResults(prev => [...data, ...prev])
-        toast.success(`Processed ${data.length} files from folder`)
+      const data = response.data
+      const resultsArray = data.results || []
+
+      if (Array.isArray(resultsArray)) {
+        setResults(prev => [...resultsArray, ...prev])
+        toast.success(`Processed ${resultsArray.length} files from folder`)
       } else {
         toast.error('Unexpected response format')
       }
@@ -153,6 +155,15 @@ export default function Upload() {
                       <div>
                         <h4 className="font-bold">{res.filename}</h4>
                         <p className="text-xs text-gray-500 mt-1 truncate max-w-md italic">"{res.transcript}"</p>
+                        {res.keywords && res.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {res.keywords.map(kw => (
+                              <span key={kw} className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30 font-bold uppercase tracking-tighter">
+                                {kw}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">

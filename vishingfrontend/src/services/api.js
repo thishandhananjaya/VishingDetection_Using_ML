@@ -7,5 +7,6 @@ export const getCalls = () => api.get('/calls')
 export const getCall = (id) => api.get(`/calls/${id}`)
 export const uploadFile = (formData, onUploadProgress) => api.post('/analyze', formData, { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress })
 export const analyzeFolder = (path) => api.post('/analyze_folder', { path })
-export const markReviewed = (id, payload) => api.put(`/calls/${id}/review`, payload)
+export const summarizeCall = (id) => api.post(`/summarize/${id}`)
+export const markReviewed = (id) => api.put(`/calls/${id}/resolve`)
 export default api

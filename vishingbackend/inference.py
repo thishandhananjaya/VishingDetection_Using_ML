@@ -127,6 +127,12 @@ class ScamInference:
         # Extra features
         extra = self.extract_features(text, cleaned)
         
+        # Keyword extraction
+        scam_keywords = ['urgent', 'click', 'free', 'winner', 'prize', 'congratulations', 
+                         'claim', 'limited', 'act now', 'verify', 'suspended', 'account',
+                         'password', 'bank', 'credit card', 'won', 'lottery', 'call now']
+        detected_keywords = [kw for kw in scam_keywords if kw in cleaned]
+        
         with torch.no_grad():
             outputs = self.model(x, extra)
             probs = torch.softmax(outputs, dim=1)
@@ -135,5 +141,6 @@ class ScamInference:
         return {
             "prediction": self.labels[predicted.item()],
             "confidence": round(confidence.item() * 100, 2),
-            "text": text
+            "text": text,
+            "keywords": detected_keywords
         }
